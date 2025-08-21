@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="51f73326-08b5-4b9c-b06d-b72c44e1b9b5" name="Changes" comment="Hauptstruktur des Python Codes">
-      <change afterPath="$PROJECT_DIR$/Procfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/web/index.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="51f73326-08b5-4b9c-b06d-b72c44e1b9b5" name="Changes" comment="funktionierender Server">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -31,6 +28,18 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Antonsu187"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/Antonsu187/swimbase.git",
+    "accountId": "1739f8dd-925a-4b9d-8a4c-6032aa8520cd"
+  }
+}]]></component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 6
 }]]></component>
@@ -78,7 +87,15 @@
       <option name="project" value="LOCAL" />
       <updated>1755774517375</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="funktionierender Server">
+      <option name="closed" value="true" />
+      <created>1755777563348</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1755777563348</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -114,7 +131,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="developing" />
+                        <option value="origin/developing" />
                       </list>
                     </value>
                   </entry>
@@ -128,6 +145,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Hauptstruktur des Python Codes" />
-    <option name="LAST_COMMIT_MESSAGE" value="Hauptstruktur des Python Codes" />
+    <MESSAGE value="funktionierender Server" />
+    <option name="LAST_COMMIT_MESSAGE" value="funktionierender Server" />
   </component>
 </project>
