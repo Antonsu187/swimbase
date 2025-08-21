@@ -4,41 +4,37 @@
   <meta charset="utf-8" />
   <title>Swim Plans</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- PWA (optional – funktioniert auch ohne diese Dateien, dann ggf. Konsole-404 ignorieren) -->
+  <!-- PWA -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0ea5e9" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="apple-touch-icon" href="/icons/icon-192.png">
-
   <style>
-    :root { --accent:#0ea5e9; }
     body { font-family: system-ui, Arial, sans-serif; max-width: 960px; margin: 24px auto; padding: 0 12px; }
     .card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin: 8px 0; }
     label { display: inline-block; margin: 6px 8px 6px 0; }
-    input, select { padding: 6px 8px; }
-    button { padding: 8px 12px; cursor: pointer; background: var(--accent); color:#fff; border:0; border-radius:8px;}
-    button[disabled]{opacity:.6; cursor:not-allowed;}
+    input, select { padding: 4px 6px; }
+    button { padding: 6px 10px; cursor: pointer; }
     .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
     table { border-collapse: collapse; width: 100%; }
     th, td { border: 1px solid #eee; padding: 6px 8px; text-align: left; }
-    .muted{color:#666}
-    .error{color:#b00020}
+    .muted { color: #555; font-size: 0.9em; }
+    .error { color: red; }
   </style>
 </head>
 <body>
   <h1>Schwimmpläne – Vorlagen → Workouts</h1>
 
-  <p class="muted" id="status">Lade Templates …</p>
   <section id="templates"></section>
 
   <section id="instantiation" style="display:none;">
     <h2>2) Dropdowns & Eingaben</h2>
     <div class="card">
       <label>Workout-Name:
-        <input id="workoutName" placeholder="z. B. Technik Brust – Kurz (neu)"/>
+        <input id="workoutName" />
       </label>
       <div id="setsEditor"></div>
-      <button id="createBtn" disabled>Workout erstellen</button>
+      <button id="createBtn">Workout erstellen</button>
     </div>
   </section>
 
@@ -47,17 +43,19 @@
     <div id="setsTable"></div>
   </section>
 
+  <section id="browse" style="display:none;">
+    <h2>Alle Workouts durchsuchen</h2>
+    <div id="workoutsList"></div>
+  </section>
+
 <script>
-/** ➜ HIER deine Render-URL eintragen (ohne Slash am Ende) */
+/** BACKEND-API: deine Render-URL */
 const API = "https://swimbase.onrender.com";
 
-/** Service Worker nur registrieren, wenn der Browser es unterstützt */
 if ('serviceWorker' in navigator) {
-  // Diese Registrierung schlägt still fehl, wenn sw.js nicht vorhanden ist – kein Problem.
-  navigator.serviceWorker.register('/sw.js').catch(()=>{});
+  navigator.serviceWorker.register('/sw.js').catch(console.error);
 }
 
-const elStatus = document.getElementById("status");
 const elTemplates = document.getElementById("templates");
 const elInstantiation = document.getElementById("instantiation");
 const elSetsEditor = document.getElementById("setsEditor");
@@ -65,6 +63,8 @@ const elWorkoutName = document.getElementById("workoutName");
 const elCreateBtn = document.getElementById("createBtn");
 const elResult = document.getElementById("result");
 const elSetsTable = document.getElementById("setsTable");
+const elBrowse = document.getElementById("browse");
+const elWorkoutsList = document.getElementById("workoutsList");
 
 let selectedTpl = null;
 let setsState = [];
@@ -77,59 +77,42 @@ function h(tag, attrs={}, ...children){
     else if (k.startsWith("on")) e.addEventListener(k.slice(2).toLowerCase(), v);
     else e.setAttribute(k, v);
   }
-  for (const c of children) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  for (const c of children) {
+    e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  }
   return e;
 }
 
-/** Network helper mit Retry (Render-Free kann „kalt“ sein) */
-async function fetchJSON(url, opts={}, retries=3, delayMs=1000){
-  try{
-    const res = await fetch(url, { ...opts, headers:{ "Content-Type":"application/json", ...(opts.headers||{}) }});
-    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-    return await res.json();
-  }catch(err){
-    if (retries>0){
-      await new Promise(r=>setTimeout(r, delayMs));
-      return fetchJSON(url, opts, retries-1, delayMs*1.5);
-    }
-    throw err;
-  }
+async function fetchJSON(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error(`Fehler ${res.status}`);
+  return res.json();
 }
 
 async function loadTemplates() {
-  elStatus.textContent = "Lade Templates …";
-  try {
-    const data = await fetchJSON(`${API}/templates`);
-    elStatus.textContent = "";
-    elTemplates.innerHTML = "";
-    elTemplates.appendChild(h("h2", {}, "1) Vorlage wählen"));
-    data.forEach(t => {
-      const btn = h("button", {onClick: ()=>selectTemplate(t)}, "Wählen");
-      elTemplates.appendChild(
-        h("div", {class:"card"},
-          h("div", {}, h("strong", {}, t.name)),
-          h("div", {class:"muted"}, t.summary || ""),
-          h("div", {}, btn)
-        )
-      );
-    });
-    if (data.length===0){
-      elTemplates.appendChild(h("p",{class:"muted"},"Keine Templates gefunden."));
-    }
-  } catch (e) {
-    elStatus.innerHTML = `<span class="error">API-Fehler beim Laden der Templates: ${e.message}</span>`;
-  }
+  const data = await fetchJSON(`${API}/templates`);
+  elTemplates.innerHTML = "";
+  elTemplates.appendChild(h("h2", {}, "1) Vorlage wählen"));
+  data.forEach(t => {
+    const btn = h("button", {onClick: ()=>selectTemplate(t)}, "Wählen");
+    elTemplates.appendChild(
+      h("div", {class:"card"},
+        h("div", {}, h("strong", {}, t.name)),
+        h("div", {}, t.summary || ""),
+        h("div", {}, btn)
+      )
+    );
+  });
 }
 
 function selectTemplate(tpl) {
   selectedTpl = tpl;
   elInstantiation.style.display = "";
-  elCreateBtn.disabled = false;
   elWorkoutName.value = `${tpl.name} (neu)`;
   setsState = (tpl.sets||[]).map(s => ({
     order_idx: s.order_idx,
-    repeat_count: s.repeat_count_options?.[0] ?? 1,
-    distance_m: s.distance_m_options?.[0] ?? 25,
+    repeat_count: s.repeat_count_options[0],
+    distance_m: s.distance_m_options[0],
     rest_s: "",
     sendoff_s: "",
     intensity_zone: ""
@@ -141,9 +124,11 @@ function renderSetsEditor(tpl) {
   elSetsEditor.innerHTML = "";
   (tpl.sets||[]).forEach((s, i) => {
     const repSel = h("select", {onChange: e=>{ setsState[i].repeat_count = parseInt(e.target.value,10); }});
-    (s.repeat_count_options||[1,2,3]).forEach(v => repSel.appendChild(h("option", {value: v}, String(v))));
+    s.repeat_count_options.forEach(v => repSel.appendChild(h("option", {value: v}, String(v))));
+
     const distSel = h("select", {onChange: e=>{ setsState[i].distance_m = parseInt(e.target.value,10); }});
-    (s.distance_m_options||[25,50]).forEach(v => distSel.appendChild(h("option", {value: v}, String(v))));
+    s.distance_m_options.forEach(v => distSel.appendChild(h("option", {value: v}, String(v))));
+
     repSel.value = String(setsState[i].repeat_count);
     distSel.value = String(setsState[i].distance_m);
 
@@ -151,10 +136,9 @@ function renderSetsEditor(tpl) {
     const sendoff = h("input", {type:"number", placeholder:"sendoff_s (Sek.)", value: setsState[i].sendoff_s, onInput:e=>setsState[i].sendoff_s=e.target.value});
     const zone = h("input", {placeholder:"intensity_zone", value: setsState[i].intensity_zone, onInput:e=>setsState[i].intensity_zone=e.target.value});
 
-    const note = s.default_notes && s.default_notes.de ? ` – ${s.default_notes.de}` : "";
     elSetsEditor.appendChild(
       h("div", {class:"card"},
-        h("div", {}, h("strong", {}, `Set ${s.order_idx}`), note),
+        h("div", {}, h("strong", {}, `Set ${s.order_idx}`), s.default_notes?.de ? ` – ${s.default_notes.de}` : ""),
         h("div", {class:"row"},
           h("label", {}, "Wiederholungen:", " ", repSel),
           h("label", {}, "Strecke:", " ", distSel),
@@ -165,78 +149,105 @@ function renderSetsEditor(tpl) {
   });
 }
 
-elCreateBtn.addEventListener("click", async ()=>{
-  if (!selectedTpl) return;
-  elCreateBtn.disabled = true;
-  elCreateBtn.textContent = "Erstelle …";
-  try{
-    const payload = {
-      template_id: selectedTpl.id,
-      name: elWorkoutName.value || "Neues Workout",
-      sets: setsState.map(s => ({
-        order_idx: s.order_idx,
-        repeat_count: Number(s.repeat_count),
-        distance_m: Number(s.distance_m),
-        rest_s: s.rest_s === "" ? null : Number(s.rest_s),
-        sendoff_s: s.sendoff_s === "" ? null : Number(s.sendoff_s),
-        intensity_zone: s.intensity_zone || null
-      }))
-    };
-    const data = await fetchJSON(`${API}/workouts/instantiate`, {
-      method:"POST",
-      body: JSON.stringify(payload)
-    });
+document.getElementById("createBtn").addEventListener("click", async ()=>{
+  const payload = {
+    template_id: selectedTpl?.id,
+    name: elWorkoutName.value || "Neues Workout",
+    sets: setsState.map(s => ({
+      order_idx: s.order_idx,
+      repeat_count: Number(s.repeat_count),
+      distance_m: Number(s.distance_m),
+      rest_s: s.rest_s === "" ? null : Number(s.rest_s),
+      sendoff_s: s.sendoff_s === "" ? null : Number(s.sendoff_s),
+      intensity_zone: s.intensity_zone || null
+    }))
+  };
+  const res = await fetch(`${API}/workouts/instantiate`, {
+    method:"POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if (res.ok) {
     workoutId = data.id;
     await loadWorkoutSets();
-  }catch(e){
-    alert("Fehler beim Erstellen des Workouts: " + e.message);
-  }finally{
-    elCreateBtn.textContent = "Workout erstellen";
-    elCreateBtn.disabled = false;
+    await loadAllWorkouts();   // Liste neu laden
+  } else {
+    alert("Fehler: " + (data.error || "Unbekannt"));
   }
 });
 
 async function loadWorkoutSets() {
-  if (!workoutId) return;
+  const sets = await fetchJSON(`${API}/workouts/${workoutId}/sets`);
   elResult.style.display = "";
-  elSetsTable.innerHTML = "<p class='muted'>Lade Sets …</p>";
-  try{
-    const sets = await fetchJSON(`${API}/workouts/${workoutId}/sets`);
-    const table = h("table", {},
-      h("thead", {},
+  const table = h("table", {},
+    h("thead", {},
+      h("tr", {},
+        h("th", {}, "#"),
+        h("th", {}, "x"),
+        h("th", {}, "m"),
+        h("th", {}, "rest_s"),
+        h("th", {}, "sendoff_s"),
+        h("th", {}, "zone"),
+        h("th", {}, "drills")
+      )
+    ),
+    h("tbody", {},
+      ...sets.map(s =>
         h("tr", {},
-          h("th", {}, "#"),
-          h("th", {}, "x"),
-          h("th", {}, "m"),
-          h("th", {}, "rest_s"),
-          h("th", {}, "sendoff_s"),
-          h("th", {}, "zone"),
-          h("th", {}, "drills")
-        )
-      ),
-      h("tbody", {},
-        ...sets.map(s =>
-          h("tr", {},
-            h("td", {}, String(s.order_idx)),
-            h("td", {}, String(s.repeat_count)),
-            h("td", {}, String(s.distance_m)),
-            h("td", {}, s.rest_s == null ? "" : String(s.rest_s)),
-            h("td", {}, s.sendoff_s == null ? "" : String(s.sendoff_s)),
-            h("td", {}, s.intensity_zone || ""),
-            h("td", {}, (s.drills||[]).map(d=>d.name).join(", "))
-          )
+          h("td", {}, String(s.order_idx)),
+          h("td", {}, String(s.repeat_count)),
+          h("td", {}, String(s.distance_m)),
+          h("td", {}, s.rest_s == null ? "" : String(s.rest_s)),
+          h("td", {}, s.sendoff_s == null ? "" : String(s.sendoff_s)),
+          h("td", {}, s.intensity_zone || ""),
+          h("td", {}, (s.drills||[]).map(d=>d.name).join(", "))
         )
       )
-    );
-    elSetsTable.innerHTML = "";
-    elSetsTable.appendChild(table);
-  }catch(e){
-    elSetsTable.innerHTML = `<p class="error">Fehler beim Laden der Workout-Sets: ${e.message}</p>`;
+    )
+  );
+  elSetsTable.innerHTML = "";
+  elSetsTable.appendChild(table);
+}
+
+/* Neue Funktionen für Browse-Feature */
+async function loadAllWorkouts() {
+  try {
+    const data = await fetchJSON(`${API}/workouts`);
+    elBrowse.style.display = "";
+    elWorkoutsList.innerHTML = "";
+    if (!data.length) {
+      elWorkoutsList.innerHTML = '<p class="muted">Noch keine Workouts gespeichert.</p>';
+      return;
+    }
+    data.forEach(w => {
+      const btn = h("button", { onClick: ()=>loadWorkoutById(w.id) }, "Ansehen");
+      const created = w.created_at ? new Date(w.created_at).toLocaleString() : "";
+      elWorkoutsList.appendChild(
+        h("div", {class:"card"},
+          h("div", {}, h("strong", {}, w.name)),
+          h("div", {class:"muted"}, created ? `Erstellt: ${created}` : ""),
+          h("div", {}, btn)
+        )
+      );
+    });
+  } catch (e) {
+    elWorkoutsList.innerHTML = `<p class="error">Fehler beim Laden der Workouts: ${e.message}</p>`;
   }
 }
 
-/** Initiales Laden */
-loadTemplates();
+async function loadWorkoutById(id) {
+  workoutId = id;
+  await loadWorkoutSets();
+  document.getElementById("result").scrollIntoView({ behavior: "smooth" });
+}
+
+/* Start: Templates + Workouts laden */
+loadTemplates()
+  .then(loadAllWorkouts)
+  .catch(err=>{
+    document.body.insertAdjacentHTML('beforeend', `<p style="color:red">API-Fehler: ${err.message}</p>`);
+  });
 </script>
 </body>
 </html>

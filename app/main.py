@@ -287,6 +287,25 @@ class AddDrillBody(BaseModel):
     order_idx: Optional[int] = 1
     params: Optional[Dict[str, Any]] = None
 
+# Liste aller Workouts (neueste zuerst)
+@app.get("/workouts")
+def list_workouts():
+    db = SessionLocal()
+    try:
+        rows = db.query(Workout).order_by(Workout.created_at.desc()).all()
+        return [
+            {
+                "id": w.id,
+                "name": w.name,
+                "created_at": w.created_at.isoformat(),
+                "source_template_id": w.source_template_id,
+            }
+            for w in rows
+        ]
+    finally:
+        db.close()
+
+
 @app.post("/sets/{set_id}/drills")
 def add_drill_to_set(set_id: str, body: AddDrillBody):
     db = SessionLocal()
