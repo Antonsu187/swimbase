@@ -2,8 +2,13 @@
 <html lang="de">
 <head>
   <meta charset="utf-8" />
-  <title>Schwimmpläne – Vorlagen</title>
+  <title>Swim Plans</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0ea5e9" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <style>
     body { font-family: system-ui, Arial, sans-serif; max-width: 960px; margin: 24px auto; padding: 0 12px; }
     .card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin: 8px 0; }
@@ -37,7 +42,12 @@
   </section>
 
 <script>
-const API = "https://swim-plans.onrender.com";
+/** BACKEND-API: deine Render-URL */
+const API = "https://swimbase.onrender.com";
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(console.error);
+}
 
 const elTemplates = document.getElementById("templates");
 const elInstantiation = document.getElementById("instantiation");
@@ -66,6 +76,7 @@ function h(tag, attrs={}, ...children){
 
 async function loadTemplates() {
   const res = await fetch(`${API}/templates`);
+  if (!res.ok) throw new Error("API /templates nicht erreichbar");
   const data = await res.json();
   elTemplates.innerHTML = "";
   elTemplates.appendChild(h("h2", {}, "1) Vorlage wählen"));
@@ -125,7 +136,7 @@ function renderSetsEditor(tpl) {
   });
 }
 
-elCreateBtn.addEventListener("click", async ()=>{
+document.getElementById("createBtn").addEventListener("click", async ()=>{
   const payload = {
     template_id: selectedTpl?.id,
     name: elWorkoutName.value || "Neues Workout",
@@ -186,7 +197,9 @@ async function loadWorkoutSets() {
   elSetsTable.appendChild(table);
 }
 
-loadTemplates();
+loadTemplates().catch(err=>{
+  document.body.insertAdjacentHTML('beforeend', `<p style="color:red">API-Fehler: ${err.message}</p>`);
+});
 </script>
 </body>
 </html>
